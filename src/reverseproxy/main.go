@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"time"
@@ -39,7 +38,7 @@ func handlebackend(frontendconn net.Conn) {
 	log.Println("Connection from " + frontendconn.RemoteAddr().String())
 
 	// Read and process data from the backend
-	backendconn, err := net.DialTimeout("tcp", "youriphere", 3*time.Second)
+	backendconn, err := net.DialTimeout("tcp", "192.168.70.2:31826", 3*time.Second)
 	defer backendconn.Close()
 
 	if err != nil {
@@ -54,23 +53,10 @@ func handlebackend(frontendconn net.Conn) {
 	responseBuf := new(bytes.Buffer)
 	ch := make(chan bool)
 
-	go func() {
-		tee := io.TeeReader(frontendconn, requestBuf)
-		n, err := io.Copy(backendconn, tee)
-		if err != nil {
-			log.Println(n, "ERROR: ", err)
-		}
-		ch <- true
-	}()
+	go forwardtoclient(frontendconn, backendconn, requestBuf, ch)
 	// forward data from server to backend
-	func() {
-		tee := io.TeeReader(backendconn, responseBuf)
-		n, err := io.Copy(frontendconn, tee)
-		if err != nil {
-			log.Println(n, "ERROR: ", err)
-		}
-		ch <- true
-	}()
+	go forwardtoserver(frontendconn, backendconn, responseBuf, ch)
+
 	<-ch
 	<-ch
 }
