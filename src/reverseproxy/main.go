@@ -45,9 +45,9 @@ func handlebackend(frontendconn net.Conn) {
 
 	log.Println("Connection from " + frontendconn.RemoteAddr().String())
 	ipaddr := readconfig()
-	log.Println(ipaddr + ":31826")
+	log.Println(ipaddr)
 
-	backendconn, err := net.DialTimeout("tcp", ipaddr+":31826", 3*time.Second)
+	backendconn, err := net.DialTimeout("tcp", ipaddr, 3*time.Second)
 	defer backendconn.Close()
 
 	if err != nil {
