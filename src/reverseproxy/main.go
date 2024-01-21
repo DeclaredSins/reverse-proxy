@@ -5,8 +5,16 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
+	"path/filepath"
 	"time"
+
+	toml "github.com/pelletier/go-toml/v2"
 )
+
+type config struct {
+	Destination_ipaddr string
+}
 
 func main() {
 	// Listen for incoming connections
@@ -23,8 +31,7 @@ func main() {
 		// Accept incoming connections
 		frontendconn, err := listener.Accept()
 		if err != nil {
-			fmt.Println("Error:", err)
-			continue
+			panic(err)
 		}
 
 		// Handle backend connection in a goroutine
@@ -36,27 +43,38 @@ func handlebackend(frontendconn net.Conn) {
 	defer frontendconn.Close()
 
 	log.Println("Connection from " + frontendconn.RemoteAddr().String())
+	ipaddr := readconfig()
 
-	// Read and process data from the backend
-	backendconn, err := net.DialTimeout("tcp", "192.168.70.2:31826", 3*time.Second)
+	backendconn, err := net.DialTimeout("tcp", ipaddr, 3*time.Second)
 	defer backendconn.Close()
 
 	if err != nil {
-		log.Fatalf("Unable to set backendConn deadline %v", err)
+		panic(err)
 	}
 
-	log.Print("frontendConnected")
-	if err != nil {
-		log.Println("Error:", err)
-	}
 	requestBuf := new(bytes.Buffer)
 	responseBuf := new(bytes.Buffer)
 	ch := make(chan bool)
 
 	go forwardtoclient(frontendconn, backendconn, requestBuf, ch)
-	// forward data from server to backend
 	go forwardtoserver(frontendconn, backendconn, responseBuf, ch)
 
 	<-ch
 	<-ch
+}
+
+func readconfig() string {
+	path, err := os.Executable()
+	if err != nil {
+		log.Println(err)
+	}
+	currentpath := filepath.Dir(path)
+	doc, err := os.ReadFile(currentpath + "\\config.toml")
+
+	var cfg config
+	errs := toml.Unmarshal(doc, &cfg)
+	if errs != nil {
+		panic(errs)
+	}
+	return string(cfg.Destination_ipaddr)
 }
