@@ -14,6 +14,7 @@ import (
 
 type config struct {
 	Destination_ipaddr string
+	Port               string
 }
 
 func main() {
@@ -44,8 +45,9 @@ func handlebackend(frontendconn net.Conn) {
 
 	log.Println("Connection from " + frontendconn.RemoteAddr().String())
 	ipaddr := readconfig()
+	log.Println(ipaddr + ":31826")
 
-	backendconn, err := net.DialTimeout("tcp", ipaddr, 3*time.Second)
+	backendconn, err := net.DialTimeout("tcp", ipaddr+":31826", 3*time.Second)
 	defer backendconn.Close()
 
 	if err != nil {
@@ -76,5 +78,18 @@ func readconfig() string {
 	if errs != nil {
 		panic(errs)
 	}
-	return string(cfg.Destination_ipaddr)
+
+	// lookup for dynamic ip
+	ips, err := net.LookupIP(cfg.Destination_ipaddr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Could not get IPs: %v\n", err)
+	}
+
+	var resolvedip string
+	for _, ip := range ips {
+		resolvedip = ip.String()
+	}
+
+	log.Println(resolvedip)
+	return resolvedip + ":" + cfg.Port
 }
