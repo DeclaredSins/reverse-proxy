@@ -19,7 +19,7 @@ type config struct {
 
 func main() {
 	// Listen for incoming connections
-	listener, err := net.Listen("tcp", "localhost:8080")
+	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
@@ -32,7 +32,7 @@ func main() {
 		// Accept incoming connections
 		frontendconn, err := listener.Accept()
 		if err != nil {
-			panic(err)
+			log.Fatalln(err)
 		}
 
 		// Handle backend connection in a goroutine
@@ -45,13 +45,14 @@ func handlebackend(frontendconn net.Conn) {
 
 	log.Println("Connection from " + frontendconn.RemoteAddr().String())
 	ipaddr := readconfig()
-	log.Println(ipaddr)
+	log.Println("Connection to " + ipaddr)
 
 	backendconn, err := net.DialTimeout("tcp", ipaddr, 3*time.Second)
+
 	defer backendconn.Close()
 
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
 	requestBuf := new(bytes.Buffer)
@@ -68,7 +69,7 @@ func handlebackend(frontendconn net.Conn) {
 func readconfig() string {
 	path, err := os.Executable()
 	if err != nil {
-		log.Println(err)
+		log.Fatalln(err)
 	}
 	currentpath := filepath.Dir(path)
 	doc, err := os.ReadFile(currentpath + "\\config.toml")
@@ -76,13 +77,14 @@ func readconfig() string {
 	var cfg config
 	errs := toml.Unmarshal(doc, &cfg)
 	if errs != nil {
-		panic(errs)
+		log.Fatalln(err)
 	}
 
 	// lookup for dynamic ip
 	ips, err := net.LookupIP(cfg.Destination_ipaddr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Could not get IPs: %v\n", err)
+		return cfg.Destination_ipaddr
 	}
 
 	var resolvedip string
